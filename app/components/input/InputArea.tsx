@@ -1,7 +1,18 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { Camera, Upload, Image as ImageIcon, RefreshCw, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import {
+	Camera,
+	Upload,
+	Image as ImageIcon,
+	RefreshCw,
+	CheckCircle2,
+	AlertCircle,
+	X,
+	Layers,
+	Eye,
+	Scan
+} from 'lucide-react';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import Webcam from 'react-webcam';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,12 +20,14 @@ import clsx from 'clsx';
 import Image from 'next/image';
 
 type InputMode = 'file' | 'camera';
+type ViewMode = 'original' | 'mask' | 'heatmap';
 
 export default function InputArea() {
 	const [mode, setMode] = useState<InputMode>('file');
 	const [image, setImage] = useState<string | null>(null);
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [result, setResult] = useState<boolean>(false);
+	const [activeView, setActiveView] = useState<ViewMode>('original');
 	const [notification, setNotification] = useState<string | null>(null);
 
 	const webcamRef = useRef<Webcam>(null);
@@ -29,6 +42,8 @@ export default function InputArea() {
 		if (file) {
 			setImage(URL.createObjectURL(file));
 			setNotification(null);
+			setResult(false);
+			setActiveView('original');
 		}
 	}, []);
 
@@ -61,14 +76,18 @@ export default function InputArea() {
 		if (imageSrc) {
 			setImage(imageSrc);
 			setNotification(null);
+			setResult(false);
+			setActiveView('original');
 		}
 	}, [webcamRef]);
 
 	const handleGenerate = () => {
 		setIsProcessing(true);
+		setActiveView('original');
 		setTimeout(() => {
 			setIsProcessing(false);
 			setResult(true);
+			setActiveView('heatmap');
 		}, 1500);
 	};
 
@@ -76,6 +95,7 @@ export default function InputArea() {
 		setImage(null);
 		setResult(false);
 		setIsProcessing(false);
+		setActiveView('original');
 		setNotification(null);
 	};
 
@@ -125,19 +145,68 @@ export default function InputArea() {
 								width={0}
 								height={0}
 								sizes="100vw"
-								className="w-auto h-auto max-w-full max-h-[500px] object-contain"
+								className="w-auto h-auto max-w-full max-h-[500px] object-contain transition-all duration-300"
 								unoptimized
 							/>
-							{result && (
+
+							{result && activeView === 'mask' && (
 								<div
-									className="absolute inset-0 z-10 mix-blend-screen opacity-70 animate-in fade-in duration-1000"
+									className="absolute inset-0 z-10 animate-in fade-in duration-500"
 									style={{
 										background:
-											'radial-gradient(circle at 50% 50%, red 0%, yellow 30%, transparent 60%)'
+											'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.9) 30%, rgba(0,0,0,0.95) 31%)'
+									}}
+								/>
+							)}
+
+							{result && activeView === 'heatmap' && (
+								<div
+									className="absolute inset-0 z-10 mix-blend-screen opacity-70 animate-in fade-in duration-500"
+									style={{
+										background:
+											'radial-gradient(circle at 50% 50%, red 0%, yellow 30%, transparent 65%)'
 									}}
 								/>
 							)}
 						</div>
+
+						{result && (
+							<div className="flex p-1 bg-surface border border-border rounded-lg gap-1">
+								<button
+									onClick={() => setActiveView('original')}
+									className={clsx(
+										'px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 cursor-pointer',
+										activeView === 'original'
+											? 'bg-white text-black shadow-sm'
+											: 'text-secondary hover:text-primary'
+									)}
+								>
+									<Eye size={14} /> Original
+								</button>
+								<button
+									onClick={() => setActiveView('mask')}
+									className={clsx(
+										'px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 cursor-pointer',
+										activeView === 'mask'
+											? 'bg-white text-black shadow-sm'
+											: 'text-secondary hover:text-primary'
+									)}
+								>
+									<Scan size={14} /> Mask
+								</button>
+								<button
+									onClick={() => setActiveView('heatmap')}
+									className={clsx(
+										'px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 cursor-pointer',
+										activeView === 'heatmap'
+											? 'bg-white text-black shadow-sm'
+											: 'text-secondary hover:text-primary'
+									)}
+								>
+									<Layers size={14} /> Heatmap
+								</button>
+							</div>
+						)}
 
 						{!result ? (
 							<div className="flex gap-3">
@@ -164,7 +233,7 @@ export default function InputArea() {
 						) : (
 							<div className="flex flex-col items-center gap-2">
 								<div className="flex items-center gap-2 text-accent font-bold font-sans mb-2">
-									<CheckCircle2 size={18} /> Detection Complete
+									<CheckCircle2 size={18} /> Analysis Complete
 								</div>
 								<button
 									onClick={handleReset}
