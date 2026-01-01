@@ -209,7 +209,7 @@ export default function InputArea() {
 										src={maskImage}
 										alt="Mask Result"
 										fill
-										className="object-contain"
+										className=""
 										unoptimized
 									/>
 								</div>
@@ -221,7 +221,7 @@ export default function InputArea() {
 										src={heatmapImage}
 										alt="Heatmap Result"
 										fill
-										className="object-contain mix-blend-normal opacity-90"
+										className="mix-blend-normal opacity-90"
 										unoptimized
 									/>
 								</div>

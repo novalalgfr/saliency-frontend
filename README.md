@@ -30,7 +30,7 @@ Pastikan Node.js sudah terinstal di komputer Anda (versi 18+ direkomendasikan).
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/username/project-name.git
+git clone https://github.com/novalalgfr/saliency-frontend.git
 cd frontend
 ```
 
