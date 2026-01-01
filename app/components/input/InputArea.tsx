@@ -22,9 +22,26 @@ import Image from 'next/image';
 type InputMode = 'file' | 'camera';
 type ViewMode = 'original' | 'mask' | 'heatmap';
 
+const dataURLtoFile = (dataurl: string, filename: string) => {
+	const arr = dataurl.split(',');
+	const match = arr[0].match(/:(.*?);/);
+	const mime = match ? match[1] : 'image/jpeg';
+	const bstr = atob(arr[1]);
+	let n = bstr.length;
+	const u8arr = new Uint8Array(n);
+	while (n--) {
+		u8arr[n] = bstr.charCodeAt(n);
+	}
+	return new File([u8arr], filename, { type: mime });
+};
+
 export default function InputArea() {
 	const [mode, setMode] = useState<InputMode>('file');
 	const [image, setImage] = useState<string | null>(null);
+	const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+	const [maskImage, setMaskImage] = useState<string | null>(null);
+	const [heatmapImage, setHeatmapImage] = useState<string | null>(null);
+
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [result, setResult] = useState<boolean>(false);
 	const [activeView, setActiveView] = useState<ViewMode>('original');
@@ -41,9 +58,12 @@ export default function InputArea() {
 		const file = acceptedFiles[0];
 		if (file) {
 			setImage(URL.createObjectURL(file));
+			setFileToUpload(file);
 			setNotification(null);
 			setResult(false);
 			setActiveView('original');
+			setMaskImage(null);
+			setHeatmapImage(null);
 		}
 	}, []);
 
@@ -75,24 +95,58 @@ export default function InputArea() {
 		const imageSrc = webcamRef.current?.getScreenshot();
 		if (imageSrc) {
 			setImage(imageSrc);
+			const file = dataURLtoFile(imageSrc, 'camera-capture.jpg');
+			setFileToUpload(file);
 			setNotification(null);
 			setResult(false);
 			setActiveView('original');
+			setMaskImage(null);
+			setHeatmapImage(null);
 		}
 	}, [webcamRef]);
 
-	const handleGenerate = () => {
+	const handleGenerate = async () => {
+		if (!fileToUpload) {
+			showNotification('Tidak ada gambar untuk diproses.');
+			return;
+		}
+
 		setIsProcessing(true);
 		setActiveView('original');
-		setTimeout(() => {
+		setResult(false);
+
+		const formData = new FormData();
+		formData.append('file', fileToUpload);
+
+		try {
+			const response = await fetch('http://127.0.0.1:5000/predict', {
+				method: 'POST',
+				body: formData
+			});
+
+			const data = await response.json();
+
+			if (response.ok && data.status === 'success') {
+				setMaskImage(data.mask_url);
+				setHeatmapImage(data.heatmap_url);
+				setResult(true);
+				setActiveView('heatmap');
+			} else {
+				showNotification(data.error || 'Gagal memproses gambar.');
+			}
+		} catch (error) {
+			console.error(error);
+			showNotification('Gagal terhubung ke Server Backend.');
+		} finally {
 			setIsProcessing(false);
-			setResult(true);
-			setActiveView('heatmap');
-		}, 1500);
+		}
 	};
 
 	const handleReset = () => {
 		setImage(null);
+		setFileToUpload(null);
+		setMaskImage(null);
+		setHeatmapImage(null);
 		setResult(false);
 		setIsProcessing(false);
 		setActiveView('original');
@@ -141,32 +195,36 @@ export default function InputArea() {
 						<div className="relative w-auto h-auto max-w-full max-h-[500px] rounded-lg overflow-hidden border border-border shadow-2xl flex justify-center items-center bg-black/5">
 							<Image
 								src={image}
-								alt="Preview"
+								alt="Original"
 								width={0}
 								height={0}
 								sizes="100vw"
-								className="w-auto h-auto max-w-full max-h-[500px] object-contain transition-all duration-300"
+								className="w-auto h-auto max-w-full max-h-[500px] object-contain"
 								unoptimized
 							/>
 
-							{result && activeView === 'mask' && (
-								<div
-									className="absolute inset-0 z-10 animate-in fade-in duration-500"
-									style={{
-										background:
-											'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.9) 30%, rgba(0,0,0,0.95) 31%)'
-									}}
-								/>
+							{result && activeView === 'mask' && maskImage && (
+								<div className="absolute inset-0 z-10 animate-in fade-in duration-500">
+									<Image
+										src={maskImage}
+										alt="Mask Result"
+										fill
+										className="object-contain"
+										unoptimized
+									/>
+								</div>
 							)}
 
-							{result && activeView === 'heatmap' && (
-								<div
-									className="absolute inset-0 z-10 mix-blend-screen opacity-70 animate-in fade-in duration-500"
-									style={{
-										background:
-											'radial-gradient(circle at 50% 50%, red 0%, yellow 30%, transparent 65%)'
-									}}
-								/>
+							{result && activeView === 'heatmap' && heatmapImage && (
+								<div className="absolute inset-0 z-10 animate-in fade-in duration-500">
+									<Image
+										src={heatmapImage}
+										alt="Heatmap Result"
+										fill
+										className="object-contain mix-blend-normal opacity-90"
+										unoptimized
+									/>
+								</div>
 							)}
 						</div>
 
