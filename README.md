@@ -36,14 +36,6 @@ cd frontend
 ### 2. Install Dependencies
 
 ```bash
-npm install
-```
-
-Atau gunakan package manager lain:
-
-```bash
-yarn install
-# atau
 pnpm install
 ```
 
