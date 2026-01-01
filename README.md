@@ -20,7 +20,6 @@ frontend/
 │   ├── input/            # InputArea (Logika Upload & Kamera)
 │   └── layout/           # Navbar & Footer
 ├── public/               # Aset statis
-└── tailwind.config.ts    # Konfigurasi Tema
 ```
 
 ## 🚀 Cara Menjalankan (Local)
